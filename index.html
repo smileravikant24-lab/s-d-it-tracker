@@ -487,31 +487,39 @@ function initDemoMode() {
   allRecords = JSON.parse(localStorage.getItem('cag_it_tracker') || '[]');
   renderAll();
 }
-
-// ─── SIGN IN / OUT ─────────────────────────────────────────────────────────
 async function signIn() {
   if (DEMO_MODE) { initDemoMode(); return; }
+  
+  // Check if instance exists
+  if (!msalInstance) {
+    showToast('MSAL not initialized yet. Please wait or refresh.', 'error');
+    return;
+  }
+
   try {
-    // Try popup first, fallback to redirect
-    const res = await msalInstance.loginPopup({
+    const loginRequest = {
       scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"],
       prompt: "select_account"
-    });
-    currentAccount = res.account;
-    showApp();
+    };
+    
+    // Switch to redirect if popup is blocked or fails
+    await msalInstance.loginPopup(loginRequest);
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      currentAccount = accounts[0];
+      showApp();
+    }
   } catch(e) {
-    // If popup fails, use redirect
-    if (e.errorCode === "popup_window_error" || e.errorCode === "empty_window_error" || e.name === "BrowserAuthError") {
-      try {
-        await msalInstance.loginRedirect({
-          scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"]
-        });
-      } catch(e2) { showToast('Login failed: ' + e2.message, 'error'); }
+    console.error(e);
+    // Agar popup block ho raha hai toh automatically redirect use karein
+    if (e.name === "BrowserAuthError" || e.errorCode === "popup_window_error") {
+      msalInstance.loginRedirect(loginRequest);
     } else {
-      showToast('Login failed: ' + e.message, 'error');
+      showToast('Login error: ' + e.message, 'error');
     }
   }
 }
+
 
 function signOut() {
   if (DEMO_MODE) { location.reload(); return; }
