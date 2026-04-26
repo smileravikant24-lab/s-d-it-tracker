@@ -413,8 +413,8 @@ const MSAL_CONFIG = {
   auth: {
     clientId: "a42dccf0-dfe0-478d-a43c-9f4f9968d8b9",
     authority: "https://login.microsoftonline.com/11f913f7-47f1-492f-8558-237196821266",
-    redirectUri: "https://cagiaad-my.sharepoint.com",
-    navigateToLoginRequestUrl: false
+    redirectUri: "https://smileravikant24-lab.github.io/s-d-it-tracker/",
+    navigateToLoginRequestUrl: true
   },
   cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true },
   system: { allowNativeBroker: false }
@@ -452,15 +452,22 @@ window.addEventListener('load', async () => {
     msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
     await msalInstance.initialize();
     const response = await msalInstance.handleRedirectPromise();
-    if (response) { currentAccount = response.account; showApp(); }
-    else {
+    if (response && response.account) {
+      currentAccount = response.account;
+      showApp();
+    } else {
       const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) { currentAccount = accounts[0]; showApp(); }
-      else showLoginScreen(true);
+      if (accounts.length > 0) {
+        currentAccount = accounts[0];
+        showApp();
+      } else {
+        showLoginScreen(true);
+      }
     }
   } catch(e) {
-    console.error(e);
-    initDemoMode();
+    console.error("MSAL init error:", e);
+    // Show login screen anyway so user can try
+    showLoginScreen(true);
   }
 });
 
@@ -485,12 +492,25 @@ function initDemoMode() {
 async function signIn() {
   if (DEMO_MODE) { initDemoMode(); return; }
   try {
+    // Try popup first, fallback to redirect
     const res = await msalInstance.loginPopup({
-      scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"]
+      scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"],
+      prompt: "select_account"
     });
     currentAccount = res.account;
     showApp();
-  } catch(e) { showToast('Login failed: ' + e.message, 'error'); }
+  } catch(e) {
+    // If popup fails, use redirect
+    if (e.errorCode === "popup_window_error" || e.errorCode === "empty_window_error" || e.name === "BrowserAuthError") {
+      try {
+        await msalInstance.loginRedirect({
+          scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"]
+        });
+      } catch(e2) { showToast('Login failed: ' + e2.message, 'error'); }
+    } else {
+      showToast('Login failed: ' + e.message, 'error');
+    }
+  }
 }
 
 function signOut() {
