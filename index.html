@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT Equipment Tracker — CAG India</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/msal.js/2.38.3/msal-browser.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#0c1f3d;--navy-mid:#1a3560;--navy-light:#2e5fad;
+  --gold:#c8992a;--gold-light:#f0c040;
+  --cream:#f8f5ef;--cream-mid:#ede8df;--cream-border:#d4ccbf;
+  --text:#1a1a1a;--muted:#5a6070;
+  --success:#1a6e3d;--success-bg:#e8f5ed;
+  --danger:#8b1a1a;--danger-bg:#fdf0f0;
+  --warn:#a07010;--warn-bg:#fef9ea;
+  --white:#fff;
+  --r:6px;--r-lg:10px;
+  --shadow:0 2px 8px rgba(12,31,61,0.1);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--cream);color:var(--text);font-size:14px;min-height:100vh;}
+
+/* LOGIN SCREEN */
+.login-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:var(--navy);
+}
+.login-card{
+  background:var(--white);border-radius:16px;padding:48px;
+  max-width:440px;width:90%;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.3);
+}
+.login-emblem{
+  width:72px;height:72px;border-radius:50%;
+  background:var(--gold);margin:0 auto 20px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;color:var(--navy);
+}
+.login-card h1{font-size:22px;font-weight:600;color:var(--navy);margin-bottom:6px;}
+.login-card p{font-size:13px;color:var(--muted);margin-bottom:28px;line-height:1.6;}
+.login-divider{height:1px;background:var(--cream-border);margin:20px 0;}
+.btn-ms{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;padding:13px 20px;
+  background:#0078d4;color:#fff;border:none;border-radius:var(--r);
+  font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:500;
+  cursor:pointer;transition:background 0.15s;
+}
+.btn-ms:hover{background:#006cbf;}
+.ms-logo{width:20px;height:20px;}
+.login-note{font-size:11px;color:var(--muted);margin-top:16px;line-height:1.5;}
+
+/* HEADER */
+.app-header{
+  background:var(--navy);border-bottom:3px solid var(--gold);
+  padding:0 28px;display:flex;align-items:center;
+  justify-content:space-between;height:60px;
+  position:sticky;top:0;z-index:100;
+}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-emblem{
+  width:34px;height:34px;border-radius:50%;background:var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'IBM Plex Mono',monospace;font-weight:600;font-size:11px;color:var(--navy);
+}
+.logo-text h1{font-size:14px;font-weight:600;color:var(--white);}
+.logo-text p{font-size:10px;color:rgba(255,255,255,0.5);font-family:'IBM Plex Mono',monospace;}
+.user-info{display:flex;align-items:center;gap:12px;}
+.user-badge{
+  font-size:11px;color:rgba(255,255,255,0.7);
+  font-family:'IBM Plex Mono',monospace;text-align:right;
+}
+.user-badge strong{color:var(--gold-light);display:block;}
+.btn-logout{
+  padding:6px 14px;background:transparent;
+  border:1px solid rgba(255,255,255,0.25);border-radius:var(--r);
+  color:rgba(255,255,255,0.7);font-size:12px;cursor:pointer;
+  font-family:'IBM Plex Sans',sans-serif;transition:all 0.15s;
+}
+.btn-logout:hover{background:rgba(255,255,255,0.1);color:#fff;}
+
+/* TABS */
+.nav-tabs{background:var(--navy-mid);padding:0 28px;display:flex;gap:2px;}
+.nav-tab{
+  padding:11px 18px;font-size:13px;font-weight:500;
+  color:rgba(255,255,255,0.55);cursor:pointer;
+  border-bottom:2px solid transparent;transition:all 0.15s;white-space:nowrap;
+}
+.nav-tab:hover{color:rgba(255,255,255,0.85);}
+.nav-tab.active{color:var(--gold-light);border-bottom-color:var(--gold);}
+
+/* SYNC STATUS */
+.sync-bar{
+  background:#e8f0fe;border-bottom:1px solid #c5d5f5;
+  padding:7px 28px;display:flex;align-items:center;gap:10px;
+  font-size:12px;color:#1a3a8f;
+}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#34a853;flex-shrink:0;}
+.sync-dot.syncing{background:var(--gold);animation:pulse 1s infinite;}
+.sync-dot.error{background:#ea4335;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+/* MAIN */
+.app-body{padding:20px 28px;max-width:1400px;margin:0 auto;}
+
+.panel{background:var(--white);border:1px solid var(--cream-border);border-radius:var(--r-lg);box-shadow:var(--shadow);margin-bottom:18px;overflow:hidden;}
+.panel-header{background:var(--cream-mid);border-bottom:1px solid var(--cream-border);padding:12px 18px;display:flex;align-items:center;justify-content:space-between;}
+.panel-header h2{font-size:12px;font-weight:600;color:var(--navy);letter-spacing:0.5px;text-transform:uppercase;}
+.panel-body{padding:18px;}
+
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group.span2{grid-column:span 2;}
+.form-label{font-size:10px;font-weight:600;color:var(--muted);letter-spacing:0.6px;text-transform:uppercase;}
+.form-control{
+  padding:7px 11px;border:1px solid var(--cream-border);
+  border-radius:var(--r);font-family:'IBM Plex Sans',sans-serif;
+  font-size:13px;color:var(--text);background:var(--cream);
+  transition:border-color 0.15s;outline:none;width:100%;
+}
+.form-control:focus{border-color:var(--navy-light);background:var(--white);}
+.form-control[readonly]{background:#eef2f8;color:var(--navy);font-weight:500;}
+
+/* OFFICE SEARCH */
+.office-search-wrap{position:relative;}
+.dropdown-list{
+  position:absolute;top:100%;left:0;right:0;
+  background:var(--white);border:1px solid var(--cream-border);
+  border-top:none;border-radius:0 0 var(--r) var(--r);
+  max-height:220px;overflow-y:auto;z-index:50;
+  box-shadow:0 4px 12px rgba(12,31,61,0.12);display:none;
+}
+.dropdown-list.show{display:block;}
+.dropdown-item{padding:8px 13px;cursor:pointer;border-bottom:1px solid var(--cream-mid);}
+.dropdown-item:hover{background:#eef2f8;}
+.dropdown-item .on{font-size:13px;font-weight:500;color:var(--navy);}
+.dropdown-item .om{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+.no-results{padding:14px;text-align:center;color:var(--muted);font-size:13px;}
+
+/* EQ TABLE */
+.eq-table{width:100%;border-collapse:collapse;}
+.eq-table th{background:var(--cream-mid);border:1px solid var(--cream-border);padding:7px 10px;font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;text-align:center;}
+.eq-table td{border:1px solid var(--cream-border);padding:7px 9px;font-size:13px;vertical-align:middle;}
+.eq-table td:first-child{font-weight:500;color:var(--navy);padding-left:13px;}
+.eq-table input[type=number]{width:72px;text-align:center;padding:4px 6px;border:1px solid var(--cream-border);border-radius:var(--r);font-family:'IBM Plex Mono',monospace;font-size:13px;background:var(--cream);outline:none;}
+.eq-table input[type=number]:focus{border-color:var(--navy-light);background:var(--white);}
+
+/* BUTTONS */
+.btn{padding:8px 18px;border-radius:var(--r);font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--navy);color:var(--white);}
+.btn-primary:hover{background:var(--navy-mid);}
+.btn-primary:disabled{background:#aaa;cursor:not-allowed;}
+.btn-gold{background:var(--gold);color:var(--navy);}
+.btn-gold:hover{background:var(--gold-light);}
+.btn-outline{background:transparent;border:1px solid var(--cream-border);color:var(--muted);}
+.btn-outline:hover{background:var(--cream-mid);}
+.btn-success{background:var(--success);color:var(--white);}
+.btn-danger{background:var(--danger);color:var(--white);padding:4px 10px;font-size:11px;}
+.btn-sm{padding:5px 12px;font-size:12px;}
+.flex-end{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px;}
+.stat-card{background:var(--white);border:1px solid var(--cream-border);border-radius:var(--r-lg);padding:14px;box-shadow:var(--shadow);}
+.stat-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:5px;}
+.stat-value{font-size:24px;font-weight:300;color:var(--navy);font-family:'IBM Plex Mono',monospace;}
+.stat-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* RECORDS TABLE */
+.rec-table{width:100%;border-collapse:collapse;font-size:12px;}
+.rec-table th{background:var(--navy);color:rgba(255,255,255,0.85);padding:9px 11px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;text-align:left;white-space:nowrap;}
+.rec-table td{border-bottom:1px solid var(--cream-border);padding:9px 11px;vertical-align:middle;}
+.rec-table tr:hover td{background:#f0f4fb;}
+.rec-table tr.sanctioned td{background:var(--success-bg);}
+.rec-table tr.partial td{background:var(--warn-bg);}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:30px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;}
+.badge-pending{background:#fff3cd;color:#856404;}
+.badge-sanctioned{background:var(--success-bg);color:var(--success);}
+.badge-partial{background:#fff3e0;color:#a05000;}
+.stream-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;font-family:'IBM Plex Mono',monospace;background:#e8eef8;color:var(--navy-mid);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(12,31,61,0.55);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--white);border-radius:var(--r-lg);max-width:660px;width:90%;max-height:90vh;overflow-y:auto;}
+.modal-header{background:var(--navy);padding:16px 22px;border-radius:var(--r-lg) var(--r-lg) 0 0;display:flex;align-items:center;justify-content:space-between;}
+.modal-header h3{font-size:14px;font-weight:600;color:var(--white);}
+.close-btn{color:rgba(255,255,255,0.6);cursor:pointer;font-size:20px;background:none;border:none;}
+.modal-body{padding:22px;}
+.modal-footer{padding:14px 22px;border-top:1px solid var(--cream-border);display:flex;gap:10px;justify-content:flex-end;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--navy);color:var(--white);padding:11px 18px;border-radius:var(--r-lg);font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:999;transform:translateY(80px);opacity:0;transition:all 0.3s;border-left:4px solid var(--gold);max-width:340px;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-left-color:#2ecc71;}
+.toast.error{border-left-color:#e74c3c;}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:var(--muted);}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--cream-border);border-top-color:var(--navy);border-radius:50%;animation:spin 0.7s linear infinite;margin-bottom:10px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin:16px 0 10px;display:flex;align-items:center;gap:8px;}
+.section-title::after{content:'';flex:1;height:1px;background:var(--cream-border);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.actions-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 18px;border-bottom:1px solid var(--cream-border);}
+.search-filter{padding:7px 11px;border:1px solid var(--cream-border);border-radius:var(--r);font-family:'IBM Plex Sans',sans-serif;font-size:13px;background:var(--white);outline:none;min-width:180px;}
+.search-filter:focus{border-color:var(--navy-light);}
+.info-box{background:#eef2f8;border:1px solid #c5d4ee;border-radius:var(--r);padding:9px 13px;font-size:12px;color:var(--navy-mid);margin-bottom:14px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-emblem">CAG</div>
+    <h1>IT Equipment Tracker</h1>
+    <p>Demand & Sanction Management System<br>Office of the Comptroller & Auditor General of India</p>
+    <div class="login-divider"></div>
+    <button class="btn-ms" onclick="signIn()">
+      <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+        <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+        <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+        <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+      </svg>
+      Sign in with Microsoft (CAG Account)
+    </button>
+    <p class="login-note">Use your official CAG Microsoft 365 account<br>(ravikcons.cag@cag.gov.in)</p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none;">
+
+<header class="app-header">
+  <div class="logo">
+    <div class="logo-emblem">CAG</div>
+    <div class="logo-text">
+      <h1>IT Equipment Demand & Sanction Tracker</h1>
+      <p>COMPTROLLER & AUDITOR GENERAL OF INDIA — ICTD</p>
+    </div>
+  </div>
+  <div class="user-info">
+    <div class="user-badge">
+      <strong id="userName">Loading...</strong>
+      <span id="userEmail"></span>
+    </div>
+    <button class="btn-logout" onclick="signOut()">Sign Out</button>
+  </div>
+</header>
+
+<div class="sync-bar">
+  <div class="sync-dot" id="syncDot"></div>
+  <span id="syncStatus">Connected to Microsoft Lists</span>
+  <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;" id="liveTime"></span>
+</div>
+
+<nav class="nav-tabs">
+  <div class="nav-tab active" onclick="switchTab('demand',this)">＋ New Demand Entry</div>
+  <div class="nav-tab" onclick="switchTab('sanction',this)">✓ Update Sanction</div>
+  <div class="nav-tab" onclick="switchTab('records',this)">All Records</div>
+  <div class="nav-tab" onclick="switchTab('report',this)">Summary Report</div>
+</nav>
+
+<div class="app-body">
+
+  <!-- TAB 1: DEMAND ENTRY -->
+  <div id="tab-demand" class="tab-content active">
+    <div class="panel">
+      <div class="panel-header"><h2>Office Selection</h2><span style="font-size:11px;color:var(--muted)">Type to search — all fields auto-fill</span></div>
+      <div class="panel-body">
+        <div class="form-grid">
+          <div class="form-group span2">
+            <label class="form-label">Search Office</label>
+            <div class="office-search-wrap">
+              <input type="text" id="officeSearch" class="form-control" placeholder="Type office name, code, city, state..." oninput="filterOffices(this.value)" onfocus="showDD()" autocomplete="off">
+              <div class="dropdown-list" id="officeDD"></div>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Office Code</label><input type="text" id="f_code" class="form-control" readonly placeholder="Auto-filled"></div>
+          <div class="form-group"><label class="form-label">Stream</label><input type="text" id="f_stream" class="form-control" readonly placeholder="Auto-filled"></div>
+          <div class="form-group"><label class="form-label">State / Territory</label><input type="text" id="f_state" class="form-control" readonly placeholder="Auto-filled"></div>
+          <div class="form-group"><label class="form-label">District</label><input type="text" id="f_district" class="form-control" readonly placeholder="Auto-filled"></div>
+          <div class="form-group"><label class="form-label">City</label><input type="text" id="f_city" class="form-control" readonly placeholder="Auto-filled"></div>
+          <div class="form-group"><label class="form-label">Main / Branch</label><input type="text" id="f_type" class="form-control" readonly placeholder="Auto-filled"></div>
+          <div class="form-group span2"><label class="form-label">Office Name (Updated)</label><input type="text" id="f_name" class="form-control" readonly placeholder="Auto-filled"></div>
+          <div class="form-group span2"><label class="form-label">Office Name (Hindi)</label><input type="text" id="f_hindi" class="form-control" readonly placeholder="Auto-filled"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Demand Details</h2></div>
+      <div class="panel-body">
+        <div class="form-grid" style="margin-bottom:16px;">
+          <div class="form-group"><label class="form-label">Demand Ref. No. *</label><input type="text" id="d_ref" class="form-control" placeholder="e.g. DEM/2025/001"></div>
+          <div class="form-group"><label class="form-label">Demand Date</label><input type="date" id="d_date" class="form-control"></div>
+          <div class="form-group"><label class="form-label">Letter / Order No.</label><input type="text" id="d_letter" class="form-control" placeholder="Letter number"></div>
+          <div class="form-group"><label class="form-label">Letter Date</label><input type="date" id="d_ldate" class="form-control"></div>
+          <div class="form-group span2"><label class="form-label">Remarks</label><input type="text" id="d_remarks" class="form-control" placeholder="Purpose or remarks"></div>
+        </div>
+        <div class="section-title">Equipment Quantities Demanded</div>
+        <table class="eq-table">
+          <thead><tr><th style="text-align:left;width:180px">Equipment</th><th>Desktop</th><th>Laptop</th><th>Printer</th><th>Scanner</th><th>AIO</th><th>HE Laptop</th><th>HE Desktop</th><th>Other</th></tr></thead>
+          <tbody><tr>
+            <td>Qty Demanded</td>
+            <td><input type="number" min="0" id="q_desktop" value="0"></td>
+            <td><input type="number" min="0" id="q_laptop" value="0"></td>
+            <td><input type="number" min="0" id="q_printer" value="0"></td>
+            <td><input type="number" min="0" id="q_scanner" value="0"></td>
+            <td><input type="number" min="0" id="q_aio" value="0"></td>
+            <td><input type="number" min="0" id="q_helaptop" value="0"></td>
+            <td><input type="number" min="0" id="q_hedesktop" value="0"></td>
+            <td><input type="number" min="0" id="q_other" value="0"></td>
+          </tr></tbody>
+        </table>
+        <div class="flex-end">
+          <button class="btn btn-outline" onclick="clearForm()">✕ Clear</button>
+          <button class="btn btn-primary" id="saveBtn" onclick="saveDemand()">✓ Save to Microsoft Lists</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: SANCTION -->
+  <div id="tab-sanction" class="tab-content">
+    <div class="info-box">Select a record below and click "Update Sanction" to enter sanctioned quantities.</div>
+    <div class="panel">
+      <div class="panel-header"><h2>Pending / Partial Records</h2><button class="btn btn-sm btn-outline" onclick="loadRecords()">↻ Refresh</button></div>
+      <div class="panel-body" style="padding:0;">
+        <div class="actions-row"><input type="text" class="search-filter" id="sanSearch" placeholder="Search by office or ref..." oninput="renderSanctionTable()"></div>
+        <div style="overflow-x:auto;"><table class="rec-table" style="min-width:860px;" id="sanTable">
+          <thead><tr><th>Ref No.</th><th>Date</th><th>Office</th><th>State</th><th>Stream</th><th>Total Dem.</th><th>Total San.</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody id="sanBody"><tr><td colspan="9" class="loading"><div class="spinner"></div><br>Loading...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: RECORDS -->
+  <div id="tab-records" class="tab-content">
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card"><div class="stat-label">Total Records</div><div class="stat-value" id="s_total">—</div></div>
+      <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value" id="s_pend" style="color:#8b6914">—</div></div>
+      <div class="stat-card"><div class="stat-label">Partial</div><div class="stat-value" id="s_part" style="color:#a05000">—</div></div>
+      <div class="stat-card"><div class="stat-label">Sanctioned</div><div class="stat-value" id="s_sanc" style="color:var(--success)">—</div></div>
+      <div class="stat-card"><div class="stat-label">Items Demanded</div><div class="stat-value" id="s_items">—</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>All Records</h2><button class="btn btn-sm btn-outline" onclick="exportCSV()">↓ Export CSV</button></div>
+      <div class="panel-body" style="padding:0;">
+        <div class="actions-row">
+          <input type="text" class="search-filter" id="recSearch" placeholder="Search..." oninput="renderRecordsTable()">
+          <select class="search-filter" id="fStream" onchange="renderRecordsTable()"><option value="">All Streams</option></select>
+          <select class="search-filter" id="fStatus" onchange="renderRecordsTable()"><option value="">All Status</option><option>Pending</option><option>Partial</option><option>Sanctioned</option></select>
+          <button class="btn btn-sm btn-outline" onclick="loadRecords()">↻ Refresh</button>
+        </div>
+        <div style="overflow-x:auto;"><table class="rec-table" style="min-width:1200px;">
+          <thead><tr><th>#</th><th>Ref No.</th><th>Date</th><th>Office Name</th><th>Code</th><th>Stream</th><th>State</th><th>City</th><th>Desk D/S</th><th>Lap D/S</th><th>Prn D/S</th><th>Scn D/S</th><th>AIO D/S</th><th>HEL D/S</th><th>HED D/S</th><th>Oth D/S</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="recBody"><tr><td colspan="18" class="loading"><div class="spinner"></div><br>Loading...</td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: REPORT -->
+  <div id="tab-report" class="tab-content">
+    <div class="panel">
+      <div class="panel-header"><h2>Summary Report</h2><button class="btn btn-sm btn-outline" onclick="window.print()">Print</button></div>
+      <div class="panel-body" id="reportBody"><div class="loading"><div class="spinner"></div><br>Loading report...</div></div>
+    </div>
+  </div>
+
+</div><!-- /app-body -->
+</div><!-- /mainApp -->
+
+<!-- SANCTION MODAL -->
+<div class="modal-overlay" id="sanctionModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Update Sanction — <span id="m_ref"></span></h3>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="m_officeInfo" style="margin-bottom:14px;padding:10px 13px;background:var(--cream);border-radius:var(--r);font-size:13px;"></div>
+      <div class="section-title">Sanction Details</div>
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="form-group"><label class="form-label">Sanction Order No.</label><input type="text" id="s_order" class="form-control" placeholder="Order number"></div>
+        <div class="form-group"><label class="form-label">Sanction Date</label><input type="date" id="s_date" class="form-control"></div>
+        <div class="form-group span2"><label class="form-label">Sanction Remarks</label><input type="text" id="s_remarks" class="form-control" placeholder="Remarks"></div>
+      </div>
+      <div class="section-title">Sanctioned vs Demanded</div>
+      <table class="eq-table"><thead><tr><th style="text-align:left">Item</th><th>Demanded</th><th>Sanctioned</th></tr></thead><tbody id="m_qtyBody"></tbody></table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-success" onclick="saveSanction()">✓ Save Sanction to Lists</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── MSAL CONFIG ───────────────────────────────────────────────────────────
+// For file:// protocol, use native client redirect URI (must be registered in Azure)
+const MSAL_CONFIG = {
+  auth: {
+    clientId: "a42dccf0-dfe0-478d-a43c-9f4f9968d8b9",
+    authority: "https://login.microsoftonline.com/11f913f7-47f1-492f-8558-237196821266",
+    redirectUri: "https://cagiaad-my.sharepoint.com",
+    navigateToLoginRequestUrl: false
+  },
+  cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true },
+  system: { allowNativeBroker: false }
+};
+
+// SharePoint / List Config
+const GRAPH = "https://graph.microsoft.com/v1.0";
+const SHAREPOINT_HOST = "cagiaad-my.sharepoint.com";
+const DRIVE_OWNER = "ravikcons_cag_cag_gov_in";
+const LIST_NAME = "IT_Demand_Tracker";
+
+// ─── FALLBACK: LocalStorage mode ───────────────────────────────────────────
+const DEMO_MODE = false; // Azure credentials configured
+
+let msalInstance = null;
+let currentAccount = null;
+let allRecords = [];
+let editingItemId = null;
+
+// ─── INIT ──────────────────────────────────────────────────────────────────
+window.addEventListener('load', async () => {
+  updateClock();
+  setInterval(updateClock, 1000);
+  document.getElementById('d_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('s_date').value = new Date().toISOString().split('T')[0];
+
+  if (DEMO_MODE) {
+    // Run in localStorage mode with notice
+    showLoginScreen(false);
+    initDemoMode();
+    return;
+  }
+
+  try {
+    msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+    await msalInstance.initialize();
+    const response = await msalInstance.handleRedirectPromise();
+    if (response) { currentAccount = response.account; showApp(); }
+    else {
+      const accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) { currentAccount = accounts[0]; showApp(); }
+      else showLoginScreen(true);
+    }
+  } catch(e) {
+    console.error(e);
+    initDemoMode();
+  }
+});
+
+function showLoginScreen(show) {
+  document.getElementById('loginScreen').style.display = show ? 'flex' : 'none';
+  document.getElementById('mainApp').style.display = show ? 'none' : 'block';
+}
+
+// ─── DEMO MODE (localStorage fallback) ────────────────────────────────────
+function initDemoMode() {
+  showLoginScreen(false);
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('userName').textContent = 'Demo Mode';
+  document.getElementById('userEmail').textContent = 'Azure App ID not configured';
+  document.getElementById('syncDot').className = 'sync-dot error';
+  document.getElementById('syncStatus').textContent = '⚠ Running in Local Mode — data saved in browser only. Configure Azure App ID for SharePoint sync.';
+  allRecords = JSON.parse(localStorage.getItem('cag_it_tracker') || '[]');
+  renderAll();
+}
+
+// ─── SIGN IN / OUT ─────────────────────────────────────────────────────────
+async function signIn() {
+  if (DEMO_MODE) { initDemoMode(); return; }
+  try {
+    const res = await msalInstance.loginPopup({
+      scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"]
+    });
+    currentAccount = res.account;
+    showApp();
+  } catch(e) { showToast('Login failed: ' + e.message, 'error'); }
+}
+
+function signOut() {
+  if (DEMO_MODE) { location.reload(); return; }
+  msalInstance.logoutPopup({ account: currentAccount });
+}
+
+async function showApp() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('userName').textContent = currentAccount.name || currentAccount.username;
+  document.getElementById('userEmail').textContent = currentAccount.username;
+  setSyncStatus('syncing', 'Connecting to SharePoint Lists...');
+  await loadRecords();
+}
+
+// ─── TOKEN ─────────────────────────────────────────────────────────────────
+async function getToken() {
+  const scopes = ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"];
+  try {
+    const res = await msalInstance.acquireTokenSilent({ scopes, account: currentAccount });
+    return res.accessToken;
+  } catch(e) {
+    const res = await msalInstance.acquireTokenPopup({ scopes });
+    return res.accessToken;
+  }
+}
+
+// ─── GRAPH API HELPERS ────────────────────────────────────────────────────
+let siteId = null;
+let listId = null;
+
+async function getSiteAndList() {
+  if (siteId && listId) return;
+  const token = await getToken();
+  const headers = { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+
+  // Step 1: Get the personal OneDrive site ID via /me/drive
+  const driveRes = await fetch(`${GRAPH}/me/drive`, { headers });
+  if (!driveRes.ok) throw new Error('Cannot access OneDrive: ' + await driveRes.text());
+  const driveData = await driveRes.json();
+
+  // Extract siteId from sharepointIds
+  if (driveData.sharepointIds && driveData.sharepointIds.siteId) {
+    siteId = driveData.sharepointIds.siteId;
+  } else {
+    // Fallback: get site directly
+    const siteRes = await fetch(`${GRAPH}/sites/${SHAREPOINT_HOST}:/personal/${DRIVE_OWNER}`, { headers });
+    if (!siteRes.ok) throw new Error('Cannot access SharePoint site');
+    const siteData = await siteRes.json();
+    siteId = siteData.id;
+  }
+
+  // Step 2: Find the list by name
+  const listRes = await fetch(`${GRAPH}/sites/${siteId}/lists?$select=id,displayName`, { headers });
+  if (!listRes.ok) throw new Error('Cannot read lists: ' + await listRes.text());
+  const listData = await listRes.json();
+
+  const found = (listData.value || []).find(l =>
+    l.displayName === LIST_NAME || l.displayName.toLowerCase() === LIST_NAME.toLowerCase()
+  );
+
+  if (found) {
+    listId = found.id;
+  } else {
+    // Create the list automatically if not found
+    setSyncStatus('syncing', 'Creating List in SharePoint...');
+    const createRes = await fetch(`${GRAPH}/sites/${siteId}/lists`, {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        displayName: LIST_NAME,
+        columns: [
+          {name:'RefNo',text:{}},{name:'DemandDate',dateTime:{}},{name:'LetterNo',text:{}},
+          {name:'LetterDate',dateTime:{}},{name:'Remarks',text:{}},{name:'OfficeCode',text:{}},
+          {name:'OfficeName',text:{}},{name:'Stream',text:{}},{name:'State',text:{}},
+          {name:'District',text:{}},{name:'City',text:{}},{name:'OfficeType',text:{}},
+          {name:'HindiName',text:{}},
+          {name:'D_Desktop',number:{}},{name:'D_Laptop',number:{}},{name:'D_Printer',number:{}},
+          {name:'D_Scanner',number:{}},{name:'D_AIO',number:{}},{name:'D_HELaptop',number:{}},
+          {name:'D_HEDesktop',number:{}},{name:'D_Other',number:{}},
+          {name:'S_Desktop',number:{}},{name:'S_Laptop',number:{}},{name:'S_Printer',number:{}},
+          {name:'S_Scanner',number:{}},{name:'S_AIO',number:{}},{name:'S_HELaptop',number:{}},
+          {name:'S_HEDesktop',number:{}},{name:'S_Other',number:{}},
+          {name:'SanctionOrder',text:{}},{name:'SanctionDate',dateTime:{}},
+          {name:'SanctionRemarks',text:{}},{name:'Status',text:{}}
+        ],
+        list: { template: 'genericList' }
+      })
+    });
+    if (!createRes.ok) throw new Error('Cannot create list: ' + await createRes.text());
+    const created = await createRes.json();
+    listId = created.id;
+    setSyncStatus('ok', 'List created successfully in SharePoint!');
+  }
+}
+
+async function graphGet(url) {
+  const token = await getToken();
+  const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' } });
+  if (!res.ok) throw new Error(`API Error ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+async function graphPost(url, body) {
+  const token = await getToken();
+  const res = await fetch(url, {
+    method: 'POST', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`API Error ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+async function graphPatch(url, body) {
+  const token = await getToken();
+  const res = await fetch(url, {
+    method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`API Error ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+async function graphDelete(url) {
+  const token = await getToken();
+  const res = await fetch(url, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+  if (!res.ok) throw new Error(`Delete failed ${res.status}`);
+}
+
+// ─── LOAD RECORDS ─────────────────────────────────────────────────────────
+async function loadRecords() {
+  if (DEMO_MODE) { renderAll(); return; }
+  setSyncStatus('syncing', 'Loading from SharePoint Lists...');
+  try {
+    await getSiteAndList();
+    if (!siteId || !listId) { setSyncStatus('error', 'List not found — check list name'); return; }
+
+    const data = await graphGet(`${GRAPH}/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=500`);
+    allRecords = data.value.map(item => {
+      const f = item.fields;
+      return {
+        id: item.id,
+        ref: f.RefNo, date: f.DemandDate, letter: f.LetterNo, ldate: f.LetterDate,
+        remarks: f.Remarks, code: f.OfficeCode, name: f.OfficeName, stream: f.Stream,
+        state: f.State, district: f.District, city: f.City, type: f.OfficeType, hindi: f.HindiName,
+        demanded: { desktop:f.D_Desktop||0, laptop:f.D_Laptop||0, printer:f.D_Printer||0, scanner:f.D_Scanner||0, aio:f.D_AIO||0, helaptop:f.D_HELaptop||0, hedesktop:f.D_HEDesktop||0, other:f.D_Other||0 },
+        sanctioned: { desktop:f.S_Desktop||0, laptop:f.S_Laptop||0, printer:f.S_Printer||0, scanner:f.S_Scanner||0, aio:f.S_AIO||0, helaptop:f.S_HELaptop||0, hedesktop:f.S_HEDesktop||0, other:f.S_Other||0 },
+        sanOrder: f.SanctionOrder||'', sanDate: f.SanctionDate||'', sanRemarks: f.SanctionRemarks||'',
+        status: f.Status||'Pending'
+      };
+    });
+    setSyncStatus('ok', `Synced — ${allRecords.length} records loaded`);
+    renderAll();
+  } catch(e) {
+    setSyncStatus('error', 'Sync error: ' + e.message);
+    showToast('Load error: ' + e.message, 'error');
+  }
+}
+
+// ─── SAVE DEMAND ───────────────────────────────────────────────────────────
+async function saveDemand() {
+  if (!selOffice) { showToast('Office select karo pehle', 'error'); return; }
+  const ref = document.getElementById('d_ref').value.trim();
+  if (!ref) { showToast('Demand Ref. No. enter karo', 'error'); return; }
+  const dem = getQties('q_');
+  if (Object.values(dem).reduce((a,b)=>a+b,0) === 0) { showToast('Kum se kum ek quantity enter karo', 'error'); return; }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const fields = {
+    RefNo: ref, DemandDate: document.getElementById('d_date').value,
+    LetterNo: document.getElementById('d_letter').value,
+    LetterDate: document.getElementById('d_ldate').value,
+    Remarks: document.getElementById('d_remarks').value,
+    OfficeCode: selOffice.code, OfficeName: selOffice.name, Stream: selOffice.stream,
+    State: selOffice.state||selOffice.addrState, District: selOffice.district,
+    City: selOffice.city, OfficeType: selOffice.type, HindiName: selOffice.hindi,
+    D_Desktop: dem.desktop, D_Laptop: dem.laptop, D_Printer: dem.printer,
+    D_Scanner: dem.scanner, D_AIO: dem.aio, D_HELaptop: dem.helaptop,
+    D_HEDesktop: dem.hedesktop, D_Other: dem.other,
+    S_Desktop:0,S_Laptop:0,S_Printer:0,S_Scanner:0,S_AIO:0,S_HELaptop:0,S_HEDesktop:0,S_Other:0,
+    Status: 'Pending'
+  };
+
+  if (DEMO_MODE) {
+    const rec = { id: Date.now(), ref, date: fields.DemandDate, letter: fields.LetterNo, ldate: fields.LetterDate, remarks: fields.Remarks, ...selOffice, demanded: dem, sanctioned:{desktop:0,laptop:0,printer:0,scanner:0,aio:0,helaptop:0,hedesktop:0,other:0}, sanOrder:'',sanDate:'',sanRemarks:'',status:'Pending' };
+    allRecords.unshift(rec);
+    localStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
+    showToast('Saved (local mode)', 'success');
+    clearForm(); btn.disabled=false; btn.textContent='✓ Save to Microsoft Lists'; renderAll(); return;
+  }
+
+  try {
+    await getSiteAndList();
+    await graphPost(`${GRAPH}/sites/${siteId}/lists/${listId}/items`, { fields });
+    showToast('Demand saved to SharePoint Lists!', 'success');
+    clearForm(); await loadRecords();
+  } catch(e) { showToast('Save error: ' + e.message, 'error'); }
+  btn.disabled=false; btn.textContent='✓ Save to Microsoft Lists';
+}
+
+// ─── SANCTION ──────────────────────────────────────────────────────────────
+const EQ_KEYS = ['desktop','laptop','printer','scanner','aio','helaptop','hedesktop','other'];
+const EQ_LABELS = ['Desktop','Laptop','Printer','Scanner','AIO','HE Laptop','HE Desktop','Other'];
+
+function openSanction(id) {
+  const rec = allRecords.find(r => r.id == id);
+  if (!rec) return;
+  editingItemId = id;
+  document.getElementById('m_ref').textContent = rec.ref;
+  document.getElementById('m_officeInfo').innerHTML = `<b>${rec.name}</b> &bull; ${rec.code} &bull; ${rec.city}`;
+  document.getElementById('s_order').value = rec.sanOrder||'';
+  document.getElementById('s_date').value = rec.sanDate||new Date().toISOString().split('T')[0];
+  document.getElementById('s_remarks').value = rec.sanRemarks||'';
+  document.getElementById('m_qtyBody').innerHTML = EQ_KEYS.map((k,i) => `
+    <tr><td>${EQ_LABELS[i]}</td>
+    <td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-weight:500">${rec.demanded[k]||0}</td>
+    <td style="text-align:center"><input type="number" min="0" max="${rec.demanded[k]||0}" value="${rec.sanctioned[k]||0}" id="sq_${k}" style="width:72px;text-align:center;padding:4px;border:1px solid var(--cream-border);border-radius:4px;font-family:'IBM Plex Mono',monospace"></td>
+    </tr>`).join('');
+  document.getElementById('sanctionModal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('sanctionModal').classList.remove('show'); editingItemId=null; }
+
+async function saveSanction() {
+  const rec = allRecords.find(r => r.id == editingItemId);
+  if (!rec) return;
+  const san = {};
+  EQ_KEYS.forEach(k => { san[k] = parseInt(document.getElementById('sq_'+k).value)||0; });
+  const td = Object.values(rec.demanded).reduce((a,b)=>a+b,0);
+  const ts = Object.values(san).reduce((a,b)=>a+b,0);
+  const status = ts===0?'Pending':ts>=td?'Sanctioned':'Partial';
+
+  if (DEMO_MODE) {
+    rec.sanctioned=san; rec.sanOrder=document.getElementById('s_order').value;
+    rec.sanDate=document.getElementById('s_date').value;
+    rec.sanRemarks=document.getElementById('s_remarks').value; rec.status=status;
+    localStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
+    showToast('Sanction updated (local mode)', 'success');
+    closeModal(); renderAll(); return;
+  }
+
+  try {
+    await getSiteAndList();
+    await graphPatch(`${GRAPH}/sites/${siteId}/lists/${listId}/items/${editingItemId}/fields`, {
+      S_Desktop:san.desktop,S_Laptop:san.laptop,S_Printer:san.printer,S_Scanner:san.scanner,
+      S_AIO:san.aio,S_HELaptop:san.helaptop,S_HEDesktop:san.hedesktop,S_Other:san.other,
+      SanctionOrder:document.getElementById('s_order').value,
+      SanctionDate:document.getElementById('s_date').value,
+      SanctionRemarks:document.getElementById('s_remarks').value,
+      Status:status
+    });
+    showToast('Sanction saved to SharePoint!', 'success');
+    closeModal(); await loadRecords();
+  } catch(e) { showToast('Save error: ' + e.message, 'error'); }
+}
+
+async function deleteRecord(id) {
+  if (!confirm('Is record ko delete karein?')) return;
+  if (DEMO_MODE) {
+    allRecords = allRecords.filter(r => r.id != id);
+    localStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
+    renderAll(); showToast('Deleted'); return;
+  }
+  try {
+    await getSiteAndList();
+    await graphDelete(`${GRAPH}/sites/${siteId}/lists/${listId}/items/${id}`);
+    showToast('Record deleted'); await loadRecords();
+  } catch(e) { showToast('Delete error: ' + e.message, 'error'); }
+}
+
+// ─── RENDER ────────────────────────────────────────────────────────────────
+function renderAll() { renderStats(); renderSanctionTable(); renderRecordsTable(); generateReport(); populateStreamFilter(); }
+
+function renderStats() {
+  const t=allRecords.length, p=allRecords.filter(r=>r.status==='Pending').length, pa=allRecords.filter(r=>r.status==='Partial').length, s=allRecords.filter(r=>r.status==='Sanctioned').length;
+  const items=allRecords.reduce((sum,r)=>sum+Object.values(r.demanded).reduce((a,b)=>a+b,0),0);
+  document.getElementById('s_total').textContent=t; document.getElementById('s_pend').textContent=p;
+  document.getElementById('s_part').textContent=pa; document.getElementById('s_sanc').textContent=s; document.getElementById('s_items').textContent=items;
+}
+
+function renderSanctionTable() {
+  const q=(document.getElementById('sanSearch').value||'').toLowerCase();
+  const recs=allRecords.filter(r=>r.status!=='Sanctioned').filter(r=>!q||r.name.toLowerCase().includes(q)||r.ref.toLowerCase().includes(q));
+  const tbody=document.getElementById('sanBody');
+  if(!recs.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted)">No pending records</td></tr>';return;}
+  tbody.innerHTML=recs.map(r=>{
+    const td=Object.values(r.demanded).reduce((a,b)=>a+b,0),ts=Object.values(r.sanctioned).reduce((a,b)=>a+b,0);
+    return `<tr>
+      <td style="font-family:'IBM Plex Mono',monospace">${r.ref}</td><td>${r.date||'-'}</td>
+      <td style="font-weight:500;font-size:12px">${r.name}</td>
+      <td style="font-size:12px">${r.state||'-'}</td>
+      <td><span class="stream-badge">${r.stream}</span></td>
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${td}</td>
+      <td style="text-align:center;font-family:'IBM Plex Mono',monospace">${ts}</td>
+      <td><span class="badge badge-${r.status.toLowerCase()}">${r.status}</span></td>
+      <td><button class="btn btn-sm btn-gold" onclick="openSanction('${r.id}')">Update Sanction</button></td>
+    </tr>`;}).join('');
+}
+
+function renderRecordsTable() {
+  const q=(document.getElementById('recSearch').value||'').toLowerCase();
+  const st=document.getElementById('fStream').value, ss=document.getElementById('fStatus').value;
+  let recs=allRecords.filter(r=>(!q||(r.name||'').toLowerCase().includes(q)||(r.code||'').toLowerCase().includes(q)||(r.ref||'').toLowerCase().includes(q)||(r.city||'').toLowerCase().includes(q))&&(!st||r.stream===st)&&(!ss||r.status===ss));
+  const tbody=document.getElementById('recBody');
+  if(!recs.length){tbody.innerHTML='<tr><td colspan="18" style="text-align:center;padding:24px;color:var(--muted)">No records found</td></tr>';return;}
+  tbody.innerHTML=recs.map((r,i)=>{
+    const cls=r.status==='Sanctioned'?'sanctioned':r.status==='Partial'?'partial':'';
+    return `<tr class="${cls}">
+      <td style="font-family:'IBM Plex Mono',monospace">${i+1}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;white-space:nowrap">${r.ref}</td>
+      <td style="white-space:nowrap">${r.date||'-'}</td>
+      <td style="font-size:11px;font-weight:500">${r.name}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;font-size:11px">${r.code}</td>
+      <td><span class="stream-badge">${r.stream}</span></td>
+      <td style="font-size:11px">${r.state||'-'}</td>
+      <td>${r.city}</td>
+      ${EQ_KEYS.map(k=>`<td style="text-align:center;font-family:'IBM Plex Mono',monospace;font-size:11px">${r.demanded[k]||0}<span style="color:var(--success)">/${r.sanctioned[k]||0}</span></td>`).join('')}
+      <td><span class="badge badge-${r.status.toLowerCase()}">${r.status}</span></td>
+      <td style="white-space:nowrap"><button class="btn btn-danger" onclick="deleteRecord('${r.id}')">Del</button></td>
+    </tr>`;}).join('');
+}
+
+function populateStreamFilter() {
+  const sel=document.getElementById('fStream');
+  const streams=[...new Set(allRecords.map(r=>r.stream))].sort();
+  sel.innerHTML='<option value="">All Streams</option>'+streams.map(s=>`<option>${s}</option>`).join('');
+}
+
+function generateReport() {
+  const streams=[...new Set(allRecords.map(r=>r.stream))].sort();
+  if(!allRecords.length){document.getElementById('reportBody').innerHTML='<p style="color:var(--muted);text-align:center;padding:40px">No data yet</p>';return;}
+  const tD=EQ_KEYS.reduce((o,k)=>{o[k]=allRecords.reduce((s,r)=>s+(r.demanded[k]||0),0);return o;},{});
+  const tS=EQ_KEYS.reduce((o,k)=>{o[k]=allRecords.reduce((s,r)=>s+(r.sanctioned[k]||0),0);return o;},{});
+  let html=`<div style="margin-bottom:20px"><div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:4px">IT Equipment — Demand & Sanction Summary</div><div style="font-size:12px;color:var(--muted)">Generated: ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'})} &bull; Total records: ${allRecords.length}</div></div>
+  <div class="section-title">Overall by Equipment Type</div>
+  <table class="eq-table" style="margin-bottom:24px">
+    <thead><tr><th style="text-align:left">Metric</th>${EQ_LABELS.map(l=>`<th>${l}</th>`).join('')}<th>Total</th></tr></thead>
+    <tbody>
+      <tr><td>Total Demanded</td>${EQ_KEYS.map(k=>`<td style="text-align:center;font-family:'IBM Plex Mono',monospace">${tD[k]}</td>`).join('')}<td style="text-align:center;font-weight:600;font-family:'IBM Plex Mono',monospace">${Object.values(tD).reduce((a,b)=>a+b,0)}</td></tr>
+      <tr><td>Total Sanctioned</td>${EQ_KEYS.map(k=>`<td style="text-align:center;font-family:'IBM Plex Mono',monospace;color:var(--success)">${tS[k]}</td>`).join('')}<td style="text-align:center;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--success)">${Object.values(tS).reduce((a,b)=>a+b,0)}</td></tr>
+      <tr style="background:var(--cream-mid)"><td>Balance Pending</td>${EQ_KEYS.map(k=>`<td style="text-align:center;font-family:'IBM Plex Mono',monospace;color:var(--danger)">${tD[k]-tS[k]}</td>`).join('')}<td style="text-align:center;font-weight:600;font-family:'IBM Plex Mono',monospace;color:var(--danger)">${Object.values(tD).reduce((a,b)=>a+b,0)-Object.values(tS).reduce((a,b)=>a+b,0)}</td></tr>
+    </tbody>
+  </table>`;
+  streams.forEach(stream=>{
+    const sr=allRecords.filter(r=>r.stream===stream);
+    const sd=EQ_KEYS.reduce((o,k)=>{o[k]=sr.reduce((s,r)=>s+(r.demanded[k]||0),0);return o;},{});
+    const ss=EQ_KEYS.reduce((o,k)=>{o[k]=sr.reduce((s,r)=>s+(r.sanctioned[k]||0),0);return o;},{});
+    html+=`<div class="section-title">${stream} (${sr.length} offices)</div>
+    <table class="rec-table" style="margin-bottom:16px;font-size:11px">
+      <thead><tr><th>Ref</th><th>Office</th><th>State</th><th>Date</th>${EQ_LABELS.map(l=>`<th>${l} D/S</th>`).join('')}<th>Status</th></tr></thead>
+      <tbody>${sr.map(r=>`<tr>
+        <td style="font-family:'IBM Plex Mono',monospace">${r.ref}</td>
+        <td>${r.name}</td><td>${r.state||'-'}</td><td>${r.date||'-'}</td>
+        ${EQ_KEYS.map(k=>`<td style="text-align:center;font-family:'IBM Plex Mono',monospace">${r.demanded[k]||0}/${r.sanctioned[k]||0}</td>`).join('')}
+        <td><span class="badge badge-${r.status.toLowerCase()}">${r.status}</span></td>
+      </tr>`).join('')}
+      <tr style="background:var(--cream-mid);font-weight:600"><td colspan="4" style="text-align:right">Total →</td>${EQ_KEYS.map(k=>`<td style="text-align:center;font-family:'IBM Plex Mono',monospace">${sd[k]}/${ss[k]}</td>`).join('')}<td></td></tr>
+      </tbody>
+    </table>`;
+  });
+  document.getElementById('reportBody').innerHTML=html;
+}
+
+function exportCSV() {
+  const h=['Ref No','Date','Office','Code','Stream','State','City','Type',
+    'D_Desktop','D_Laptop','D_Printer','D_Scanner','D_AIO','D_HELaptop','D_HEDesktop','D_Other',
+    'S_Desktop','S_Laptop','S_Printer','S_Scanner','S_AIO','S_HELaptop','S_HEDesktop','S_Other',
+    'Status','SanOrder','SanDate','Remarks'];
+  const rows=allRecords.map(r=>[
+    r.ref,r.date,r.name,r.code,r.stream,r.state,r.city,r.type,
+    ...EQ_KEYS.map(k=>r.demanded[k]||0),
+    ...EQ_KEYS.map(k=>r.sanctioned[k]||0),
+    r.status,r.sanOrder,r.sanDate,r.remarks
+  ].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','));
+  const csv=[h.join(','),...rows].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv);
+  a.download='CAG_IT_Tracker_'+new Date().toISOString().split('T')[0]+'.csv';
+  a.click();
+}
+
+// ─── OFFICE DATA & SEARCH ──────────────────────────────────────────────────
+let selOffice=null;
+const officeData=[
+  {code:"ACEN-AP-01",stream:"Accounts & Entitlement",type:"Main",state:"Andhra Pradesh",addrState:"Andhra Pradesh",district:"Vijayawada",city:"Vijayawada",name:"PAG (A&E), Andhra Pradesh",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), आंध्र प्रदेश"},
+  {code:"ACEN-AR-01",stream:"Accounts & Entitlement",type:"Main",state:"Arunachal Pradesh",addrState:"Arunachal Pradesh",district:"Itanagar",city:"Itanagar",name:"PAG (A&E), Arunachal Pradesh",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), अरुणाचल प्रदेश"},
+  {code:"ACEN-AS-01",stream:"Accounts & Entitlement",type:"Main",state:"Assam",addrState:"Assam",district:"Guwahati",city:"Guwahati",name:"PAG (A&E), Assam",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), असम"},
+  {code:"ACEN-BR-01",stream:"Accounts & Entitlement",type:"Main",state:"Bihar",addrState:"Bihar",district:"Patna",city:"Patna",name:"PAG (A&E), Bihar",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), बिहार"},
+  {code:"ACEN-HR-01",stream:"Accounts & Entitlement",type:"Main",state:"Haryana",addrState:"Chandigarh",district:"Chandigarh",city:"Chandigarh",name:"PAG (A&E), Haryana",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), हरियाणा"},
+  {code:"ACEN-PB-01",stream:"Accounts & Entitlement",type:"Main",state:"Punjab",addrState:"Chandigarh",district:"Chandigarh",city:"Chandigarh",name:"PAG (A&E), Punjab & UT",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), पंजाब एवं संघ राज्य क्षेत्र"},
+  {code:"ACEN-CG-01",stream:"Accounts & Entitlement",type:"Main",state:"Chhattisgarh",addrState:"Chhattisgarh",district:"Raipur",city:"Raipur",name:"PAG (A&E), Chhattisgarh",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), छत्तीसगढ़"},
+  {code:"ACEN-GJ-01",stream:"Accounts & Entitlement",type:"Main",state:"Gujarat",addrState:"Gujarat",district:"Rajkot",city:"Rajkot",name:"PAG (A&E), Gujarat",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), गुजरात"},
+  {code:"ACEN-HP-01",stream:"Accounts & Entitlement",type:"Main",state:"Himachal Pradesh",addrState:"Himachal Pradesh",district:"Shimla",city:"Shimla",name:"PAG (A&E), Himachal Pradesh",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), हिमाचल प्रदेश"},
+  {code:"ACEN-JK-01",stream:"Accounts & Entitlement",type:"Main",state:"Jammu and Kashmir",addrState:"Jammu and Kashmir",district:"Srinagar",city:"Srinagar",name:"PAG (A&E), Jammu and Kashmir & Ladakh",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), जम्मू और कश्मीर एवं लद्दाख"},
+  {code:"ACEN-JH-01",stream:"Accounts & Entitlement",type:"Main",state:"Jharkhand",addrState:"Jharkhand",district:"Ranchi",city:"Ranchi",name:"PAG (A&E), Jharkhand",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), झारखंड"},
+  {code:"ACEN-KA-01",stream:"Accounts & Entitlement",type:"Main",state:"Karnataka",addrState:"Karnataka",district:"Bengaluru",city:"Bengaluru",name:"PAG (A&E), Karnataka",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), कर्नाटक"},
+  {code:"ACEN-KL-01",stream:"Accounts & Entitlement",type:"Main",state:"Kerala",addrState:"Kerala",district:"Thiruvananthapuram",city:"Thiruvananthapuram",name:"PAG (A&E), Kerala",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), केरल"},
+  {code:"ACEN-MP-01",stream:"Accounts & Entitlement",type:"Main",state:"Madhya Pradesh",addrState:"Madhya Pradesh",district:"Gwalior",city:"Gwalior",name:"PAG (A&E), Madhya Pradesh",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), मध्य प्रदेश"},
+  {code:"ACEN-MH-01",stream:"Accounts & Entitlement",type:"Main",state:"Maharashtra",addrState:"Maharashtra",district:"Mumbai",city:"Mumbai",name:"PAG (A&E-I), Maharashtra",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी-I), महाराष्ट्र"},
+  {code:"ACEN-MH-02",stream:"Accounts & Entitlement",type:"Main",state:"Maharashtra",addrState:"Maharashtra",district:"Nagpur",city:"Nagpur",name:"PAG (A&E)-II, Maharashtra",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी)-II, महाराष्ट्र"},
+  {code:"ACEN-OD-01",stream:"Accounts & Entitlement",type:"Main",state:"Odisha",addrState:"Odisha",district:"Bhubaneshwar",city:"Bhubaneshwar",name:"PAG (A&E), Odisha",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), ओडिशा"},
+  {code:"ACEN-RJ-01",stream:"Accounts & Entitlement",type:"Main",state:"Rajasthan",addrState:"Rajasthan",district:"Jaipur",city:"Jaipur",name:"PAG (A&E), Rajasthan",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), राजस्थान"},
+  {code:"ACEN-TN-01",stream:"Accounts & Entitlement",type:"Main",state:"Tamil Nadu",addrState:"Tamil Nadu",district:"Chennai",city:"Chennai",name:"PAG (A&E), Tamil Nadu",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), तमिल नाडु"},
+  {code:"ACEN-TG-01",stream:"Accounts & Entitlement",type:"Main",state:"Telangana",addrState:"Telangana",district:"Hyderabad",city:"Hyderabad",name:"PAG (A&E), Telangana",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), तेलंगाना"},
+  {code:"ACEN-UP-01",stream:"Accounts & Entitlement",type:"Main",state:"Uttar Pradesh",addrState:"Uttar Pradesh",district:"Prayagraj",city:"Prayagraj",name:"PAG (A&E), Uttar Pradesh",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), उत्तर प्रदेश"},
+  {code:"ACEN-WB-01",stream:"Accounts & Entitlement",type:"Main",state:"West Bengal",addrState:"West Bengal",district:"Kolkata",city:"Kolkata",name:"PAG (A&E), West Bengal",hindi:"प्रधान महालेखाकार (लेखा एवं हकदारी), पश्चिम बंगाल"},
+  {code:"STAU-AP-01",stream:"Civil Audit",type:"Main",state:"Andhra Pradesh",addrState:"Andhra Pradesh",district:"Vijayawada",city:"Vijayawada",name:"PAG (Audit), Andhra Pradesh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), आंध्र प्रदेश"},
+  {code:"STAU-BR-01",stream:"Civil Audit",type:"Main",state:"Bihar",addrState:"Bihar",district:"Patna",city:"Patna",name:"PAG (Audit-I), Bihar",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), बिहार"},
+  {code:"STAU-BR-02",stream:"Civil Audit",type:"Main",state:"Bihar",addrState:"Bihar",district:"Patna",city:"Patna",name:"PAG (Audit-II), Bihar",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-II), बिहार"},
+  {code:"STAU-HR-01",stream:"Civil Audit",type:"Main",state:"Haryana",addrState:"Chandigarh",district:"Chandigarh",city:"Chandigarh",name:"PAG (Audit), Haryana",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), हरियाणा"},
+  {code:"STAU-PB-01",stream:"Civil Audit",type:"Main",state:"Punjab",addrState:"Chandigarh",district:"Chandigarh",city:"Chandigarh",name:"PAG (Audit-I), Punjab",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), पंजाब"},
+  {code:"STAU-CG-01",stream:"Civil Audit",type:"Main",state:"Chhattisgarh",addrState:"Chhattisgarh",district:"Raipur",city:"Raipur",name:"PAG (Audit), Chhattisgarh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), छत्तीसगढ़"},
+  {code:"STAU-DL-01",stream:"Civil Audit",type:"Main",state:"Delhi",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"PAG (Audit), Delhi",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), दिल्ली"},
+  {code:"STAU-GJ-01",stream:"Civil Audit",type:"Main",state:"Gujarat",addrState:"Gujarat",district:"Rajkot",city:"Rajkot",name:"PAG (Audit-I), Gujarat",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), गुजरात"},
+  {code:"STAU-GJ-02",stream:"Civil Audit",type:"Main",state:"Gujarat",addrState:"Gujarat",district:"Ahmedabad",city:"Ahmedabad",name:"PAG (Audit-II), Gujarat",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-II), गुजरात"},
+  {code:"STAU-HP-01",stream:"Civil Audit",type:"Main",state:"Himachal Pradesh",addrState:"Himachal Pradesh",district:"Shimla",city:"Shimla",name:"PAG (Audit), Himachal Pradesh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), हिमाचल प्रदेश"},
+  {code:"STAU-JK-01",stream:"Civil Audit",type:"Main",state:"Jammu and Kashmir",addrState:"Jammu and Kashmir",district:"Srinagar",city:"Srinagar",name:"PAG (Audit), Jammu & Kashmir & Ladakh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), जम्मू और कश्मीर एवं लद्दाख"},
+  {code:"STAU-JH-01",stream:"Civil Audit",type:"Main",state:"Jharkhand",addrState:"Jharkhand",district:"Ranchi",city:"Ranchi",name:"PAG (Audit), Jharkhand",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), झारखंड"},
+  {code:"STAU-KA-01",stream:"Civil Audit",type:"Main",state:"Karnataka",addrState:"Karnataka",district:"Bengaluru",city:"Bengaluru",name:"PAG (Audit-I), Karnataka",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), कर्नाटक"},
+  {code:"STAU-KA-02",stream:"Civil Audit",type:"Main",state:"Karnataka",addrState:"Karnataka",district:"Bengaluru",city:"Bengaluru",name:"PAG (Audit-II), Karnataka",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-II), कर्नाटक"},
+  {code:"STAU-KL-01",stream:"Civil Audit",type:"Main",state:"Kerala",addrState:"Kerala",district:"Thiruvananthapuram",city:"Thiruvananthapuram",name:"PAG (Audit-I), Kerala",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), केरल"},
+  {code:"STAU-KL-02",stream:"Civil Audit",type:"Main",state:"Kerala",addrState:"Kerala",district:"Thiruvananthapuram",city:"Thiruvananthapuram",name:"PAG (Audit-II), Kerala",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-II), केरल"},
+  {code:"STAU-MP-01",stream:"Civil Audit",type:"Main",state:"Madhya Pradesh",addrState:"Madhya Pradesh",district:"Gwalior",city:"Gwalior",name:"PAG (Audit-I), Madhya Pradesh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), मध्य प्रदेश"},
+  {code:"STAU-MP-02",stream:"Civil Audit",type:"Main",state:"Madhya Pradesh",addrState:"Madhya Pradesh",district:"Bhopal",city:"Bhopal",name:"PAG (Audit-II), Madhya Pradesh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-II), मध्य प्रदेश"},
+  {code:"STAU-MH-01",stream:"Civil Audit",type:"Main",state:"Maharashtra",addrState:"Maharashtra",district:"Mumbai",city:"Mumbai",name:"PAG (Audit-I), Maharashtra",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), महाराष्ट्र"},
+  {code:"STAU-MH-02",stream:"Civil Audit",type:"Main",state:"Maharashtra",addrState:"Maharashtra",district:"Nagpur",city:"Nagpur",name:"PAG (Audit-II), Maharashtra",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-II), महाराष्ट्र"},
+  {code:"STAU-OD-01",stream:"Civil Audit",type:"Main",state:"Odisha",addrState:"Odisha",district:"Bhubaneshwar",city:"Bhubaneshwar",name:"PAG (Audit-I), Odisha",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), ओडिशा"},
+  {code:"STAU-RJ-01",stream:"Civil Audit",type:"Main",state:"Rajasthan",addrState:"Rajasthan",district:"Jaipur",city:"Jaipur",name:"PAG (Audit-I), Rajasthan",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), राजस्थान"},
+  {code:"STAU-TN-01",stream:"Civil Audit",type:"Main",state:"Tamil Nadu",addrState:"Tamil Nadu",district:"Chennai",city:"Chennai",name:"PAG (Audit-I), Tamil Nadu",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), तमिल नाडु"},
+  {code:"STAU-TG-01",stream:"Civil Audit",type:"Main",state:"Telangana",addrState:"Telangana",district:"Hyderabad",city:"Hyderabad",name:"PAG (Audit), Telangana",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), तेलंगाना"},
+  {code:"STAU-UP-01",stream:"Civil Audit",type:"Main",state:"Uttar Pradesh",addrState:"Uttar Pradesh",district:"Prayagraj",city:"Prayagraj",name:"PAG (Audit-I), Uttar Pradesh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), उत्तर प्रदेश"},
+  {code:"STAU-UP-02",stream:"Civil Audit",type:"Main",state:"Uttar Pradesh",addrState:"Uttar Pradesh",district:"Lucknow",city:"Lucknow",name:"PAG (Audit-II), Uttar Pradesh",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-II), उत्तर प्रदेश"},
+  {code:"STAU-UK-01",stream:"Civil Audit",type:"Main",state:"Uttarakhand",addrState:"Uttarakhand",district:"Dehradun",city:"Dehradun",name:"PAG (Audit), Uttarakhand",hindi:"प्रधान महालेखाकार (लेखापरीक्षा), उत्तराखंड"},
+  {code:"STAU-WB-01",stream:"Civil Audit",type:"Main",state:"West Bengal",addrState:"West Bengal",district:"Kolkata",city:"Kolkata",name:"PAG (Audit-I), West Bengal",hindi:"प्रधान महालेखाकार (लेखापरीक्षा-I), पश्चिम बंगाल"},
+  {code:"DFAU-DL-01",stream:"Defence Audit",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit, Navy, New Delhi",hindi:"महानिदेशक लेखापरीक्षा, नौ सेना, नई दिल्ली"},
+  {code:"DFAU-DL-02",stream:"Defence Audit",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit (Defence Services) HQ, New Delhi",hindi:"महानिदेशक लेखापरीक्षा (रक्षा सेवाएं) मुख्यालय, नई दिल्ली"},
+  {code:"DFAU-DL-03",stream:"Defence Audit",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit (Air Force), New Delhi",hindi:"महानिदेशक लेखापरीक्षा (वायु सेना), नई दिल्ली"},
+  {code:"DFAU-CHA-01",stream:"Defence Audit",type:"Main",state:"",addrState:"Chandigarh",district:"Chandigarh",city:"Chandigarh",name:"DG of Audit (Defence Services), Chandigarh",hindi:"महानिदेशक लेखापरीक्षा (रक्षा सेवाएं), चंडीगढ़"},
+  {code:"DFAU-PUN-02",stream:"Defence Audit",type:"Main",state:"",addrState:"Maharashtra",district:"Pune",city:"Pune",name:"DG of Audit (Defence Services), Pune",hindi:"महानिदेशक लेखापरीक्षा (रक्षा सेवाएं), पुणे"},
+  {code:"DFAU-KOL-02",stream:"Defence Audit",type:"Main",state:"",addrState:"West Bengal",district:"Kolkata",city:"Kolkata",name:"DG of Audit (Ordnance factories), Kolkata",hindi:"महानिदेशक लेखापरीक्षा (आयुध निर्माणियाँ), कोलकाता"},
+  {code:"CNAU-DL-01",stream:"Civil Audit",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit (Central Expenditure), New Delhi",hindi:"महानिदेशक लेखापरीक्षा (केंद्रीय व्यय), नई दिल्ली"},
+  {code:"CNAU-DL-06",stream:"Commercial",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit (Infrastructure), New Delhi",hindi:"महानिदेशक लेखापरीक्षा (अवसंरचना), नई दिल्ली"},
+  {code:"CNAU-DL-07",stream:"Commercial",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit, Power, New Delhi",hindi:"महानिदेशक लेखापरीक्षा (विद्युत), नई दिल्ली"},
+  {code:"CNAU-MUM-05",stream:"Commercial",type:"Main",state:"",addrState:"Maharashtra",district:"Mumbai",city:"Mumbai",name:"DG of Audit, Oil & Gas, Mumbai",hindi:"महानिदेशक लेखापरीक्षा (तेल एवं गैस), मुंबई"},
+  {code:"CNAU-RAN-01",stream:"Commercial",type:"Main",state:"",addrState:"Jharkhand",district:"Ranchi",city:"Ranchi",name:"DG of Audit (Steel), Ranchi",hindi:"महानिदेशक लेखापरीक्षा (इस्पात), राँची"},
+  {code:"RLAU-DL-01",stream:"Railway Audit",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit, Northern Railway, New Delhi",hindi:"महानिदेशक लेखापरीक्षा, उत्तर रेलवे, नई दिल्ली"},
+  {code:"RLAU-GUW-01",stream:"Railway Audit",type:"Main",state:"",addrState:"Assam",district:"Guwahati",city:"Guwahati",name:"DG of Audit, Northeast Frontier Railway, Guwahati",hindi:"महानिदेशक लेखापरीक्षा, पूर्वोत्तर सीमांत रेलवे, गुवाहाटी"},
+  {code:"RLAU-MUM-01",stream:"Railway Audit",type:"Main",state:"",addrState:"Maharashtra",district:"Mumbai",city:"Mumbai",name:"DG of Audit, Central Railway, Mumbai",hindi:"महानिदेशक लेखापरीक्षा, रेलवे, मुम्बई"},
+  {code:"RLAU-KOL-01",stream:"Railway Audit",type:"Main",state:"",addrState:"West Bengal",district:"Kolkata",city:"Kolkata",name:"DG of Audit, Eastern Railway, Kolkata",hindi:"महानिदेशक लेखापरीक्षा, रेलवे, कोलकाता"},
+  {code:"NAAA-SHI-01",stream:"Training",type:"Main",state:"",addrState:"Himachal Pradesh",district:"Shimla",city:"Shimla",name:"National Academy of Audit And Accounts",hindi:"राष्ट्रीय लेखापरीक्षा तथा लेखा अकादमी"},
+  {code:"PTAU-DL-01",stream:"Finance & Communication Audit",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"DG of Audit, Finance & Communication, New Delhi",hindi:"महानिदेशक लेखापरीक्षा, वित्त एवं संचार, नई दिल्ली"},
+  {code:"CAG Headquarter",stream:"CAG Headquarters",type:"Main",state:"",addrState:"Delhi",district:"New Delhi",city:"New Delhi",name:"O/o Comptroller & Auditor General of India",hindi:"भारत के नियंत्रक एवं महालेखापरीक्षक का कार्यालय"}
+];
+
+function filterOffices(q) {
+  const dd=document.getElementById('officeDD');
+  if(!q.trim()){dd.innerHTML='';dd.classList.remove('show');return;}
+  q=q.toLowerCase();
+  const hits=officeData.filter(o=>o.name.toLowerCase().includes(q)||o.code.toLowerCase().includes(q)||o.city.toLowerCase().includes(q)||(o.state||'').toLowerCase().includes(q)||o.stream.toLowerCase().includes(q)).slice(0,20);
+  dd.innerHTML=hits.length?hits.map(o=>`<div class="dropdown-item" onclick="selectOffice('${o.code}')"><div class="on">${o.name}</div><div class="om">${o.code} · ${o.stream} · ${o.city}</div></div>`).join(''):'<div class="no-results">No offices found</div>';
+  dd.classList.add('show');
+}
+function showDD(){const q=document.getElementById('officeSearch').value;if(q.trim())filterOffices(q);}
+function selectOffice(code){
+  const o=officeData.find(x=>x.code===code);if(!o)return;
+  selOffice=o;
+  document.getElementById('officeSearch').value=o.name;
+  document.getElementById('officeDD').classList.remove('show');
+  document.getElementById('f_code').value=o.code;
+  document.getElementById('f_stream').value=o.stream;
+  document.getElementById('f_state').value=o.state||o.addrState;
+  document.getElementById('f_district').value=o.district;
+  document.getElementById('f_city').value=o.city;
+  document.getElementById('f_type').value=o.type;
+  document.getElementById('f_name').value=o.name;
+  document.getElementById('f_hindi').value=o.hindi;
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.office-search-wrap'))document.getElementById('officeDD').classList.remove('show');});
+
+function getQties(prefix){return{desktop:+document.getElementById(prefix+'desktop').value||0,laptop:+document.getElementById(prefix+'laptop').value||0,printer:+document.getElementById(prefix+'printer').value||0,scanner:+document.getElementById(prefix+'scanner').value||0,aio:+document.getElementById(prefix+'aio').value||0,helaptop:+document.getElementById(prefix+'helaptop').value||0,hedesktop:+document.getElementById(prefix+'hedesktop').value||0,other:+document.getElementById(prefix+'other').value||0};}
+
+function clearForm(){selOffice=null;document.getElementById('officeSearch').value='';['f_code','f_stream','f_state','f_district','f_city','f_type','f_name','f_hindi','d_ref','d_letter','d_remarks'].forEach(id=>document.getElementById(id).value='');['d_date','d_ldate'].forEach(id=>document.getElementById(id).value=new Date().toISOString().split('T')[0]);EQ_KEYS.forEach(k=>document.getElementById('q_'+k).value=0);}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='records'){renderStats();renderRecordsTable();populateStreamFilter();}
+  if(name==='sanction')renderSanctionTable();
+  if(name==='report')generateReport();
+}
+
+function setSyncStatus(state,msg){
+  const dot=document.getElementById('syncDot');
+  dot.className='sync-dot'+(state==='syncing'?' syncing':state==='error'?' error':'');
+  document.getElementById('syncStatus').textContent=msg;
+}
+
+function updateClock(){document.getElementById('liveTime').textContent=new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+
+function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show '+type;setTimeout(()=>t.classList.remove('show'),3000);}
+</script>
+</body>
+</html>
