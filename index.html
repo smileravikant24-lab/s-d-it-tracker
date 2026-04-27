@@ -408,127 +408,94 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--cream);color:var(--
 <div class="toast" id="toast"></div>
 
 <script>
-// ─── MSAL CONFIG ───────────────────────────────────────────────────────────
-// For file:// protocol, use native client redirect URI (must be registered in Azure)
-const MSAL_CONFIG = {
-  auth: {
-    clientId: "a42dccf0-dfe0-478d-a43c-9f4f9968d8b9",
-    authority: "https://login.microsoftonline.com/11f913f7-47f1-492f-8558-237196821266",
-    redirectUri: "https://smileravikant24-lab.github.io/s-d-it-tracker/",
-    navigateToLoginRequestUrl: true
-  },
-  cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true },
-  system: { allowNativeBroker: false }
-};
-
-// SharePoint / List Config
-const GRAPH = "https://graph.microsoft.com/v1.0";
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const CLIENT_ID   = "a42dccf0-dfe0-478d-a43c-9f4f9968d8b9";
+const TENANT_ID   = "11f913f7-47f1-492f-8558-237196821266";
+const REDIRECT    = "https://smileravikant24-lab.github.io/s-d-it-tracker/";
+const GRAPH       = "https://graph.microsoft.com/v1.0";
 const SHAREPOINT_HOST = "cagiaad-my.sharepoint.com";
 const DRIVE_OWNER = "ravikcons_cag_cag_gov_in";
-const LIST_NAME = "IT_Demand_Tracker";
+const LIST_NAME   = "IT_Demand_Tracker";
+const SCOPES      = ["https://graph.microsoft.com/Files.ReadWrite.All","https://graph.microsoft.com/Sites.ReadWrite.All","https://graph.microsoft.com/User.Read"];
 
-// ─── FALLBACK: LocalStorage mode ───────────────────────────────────────────
-const DEMO_MODE = false; // Azure credentials configured
-
-let msalInstance = null;
+let msalInstance  = null;
 let currentAccount = null;
-let allRecords = [];
+let allRecords    = [];
 let editingItemId = null;
+let msalReady     = false;
 
-// ─── INIT ──────────────────────────────────────────────────────────────────
-window.addEventListener('load', async () => {
-  updateClock();
-  setInterval(updateClock, 1000);
-  document.getElementById('d_date').value = new Date().toISOString().split('T')[0];
-  document.getElementById('s_date').value = new Date().toISOString().split('T')[0];
-
-  if (DEMO_MODE) {
-    // Run in localStorage mode with notice
-    showLoginScreen(false);
-    initDemoMode();
-    return;
-  }
-
+// ─── MSAL INIT ─────────────────────────────────────────────────────────────
+async function initMSAL() {
   try {
-    msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+    msalInstance = new msal.PublicClientApplication({
+      auth: {
+        clientId: CLIENT_ID,
+        authority: "https://login.microsoftonline.com/" + TENANT_ID,
+        redirectUri: REDIRECT,
+        navigateToLoginRequestUrl: false
+      },
+      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true },
+      system: { allowNativeBroker: false }
+    });
     await msalInstance.initialize();
-    
-    // Enable sign in button
-    const btn = document.getElementById('signInBtn');
-    const msg = document.getElementById('loadingMsg');
-    if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
-    if(msg){ msg.style.display='none'; }
-    document.getElementById('btnText').textContent = 'Sign in with Microsoft (CAG Account)';
-    
-    const response = await msalInstance.handleRedirectPromise();
-    if (response && response.account) {
-      currentAccount = response.account;
-      showApp();
-    } else {
-      const accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) {
-        currentAccount = accounts[0];
-        showApp();
-      } else {
-        showLoginScreen(true);
-      }
-    }
+    msalReady = true;
+
+    const resp = await msalInstance.handleRedirectPromise();
+    if (resp && resp.account) { currentAccount = resp.account; showApp(); return; }
+
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) { currentAccount = accounts[0]; showApp(); return; }
+
+    enableBtn(); showLoginScreen(true);
   } catch(e) {
-    console.error('MSAL init error:', e);
-    const btn = document.getElementById('signInBtn');
-    const msg = document.getElementById('loadingMsg');
-    if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
-    if(msg){ msg.textContent = 'Ready — click to sign in'; }
-    document.getElementById('btnText').textContent = 'Sign in with Microsoft (CAG Account)';
-    showLoginScreen(true);
+    console.error("MSAL init failed:", e);
+    enableBtn(); showLoginScreen(true);
   }
+}
+
+function enableBtn() {
+  const b = document.getElementById('signInBtn');
+  if(!b) return;
+  b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer';
+  b.innerHTML = '<svg viewBox="0 0 21 21" width="18" height="18" style="margin-right:8px"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>Sign in with Microsoft (CAG Account)';
+  const m = document.getElementById('loadingMsg'); if(m) m.style.display='none';
+}
+
+window.addEventListener('load', () => {
+  updateClock(); setInterval(updateClock, 1000);
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('d_date').value = today;
+  document.getElementById('s_date').value = today;
+  const t = setInterval(() => {
+    if (typeof msal !== 'undefined') { clearInterval(t); initMSAL(); }
+  }, 100);
 });
-
-function showLoginScreen(show) {
-  document.getElementById('loginScreen').style.display = show ? 'flex' : 'none';
-  document.getElementById('mainApp').style.display = show ? 'none' : 'block';
-}
-
-// ─── DEMO MODE (localStorage fallback) ────────────────────────────────────
-function initDemoMode() {
-  showLoginScreen(false);
-  document.getElementById('mainApp').style.display = 'block';
-  document.getElementById('userName').textContent = 'Demo Mode';
-  document.getElementById('userEmail').textContent = 'Azure App ID not configured';
-  document.getElementById('syncDot').className = 'sync-dot error';
-  document.getElementById('syncStatus').textContent = '⚠ Running in Local Mode — data saved in browser only. Configure Azure App ID for SharePoint sync.';
-  allRecords = JSON.parse(localStorage.getItem('cag_it_tracker') || '[]');
-  renderAll();
-}
 
 // ─── SIGN IN / OUT ─────────────────────────────────────────────────────────
 async function signIn() {
-  if (DEMO_MODE) { initDemoMode(); return; }
+  if (!msalReady || !msalInstance) {
+    showToast('Please wait, loading...', 'error');
+    return;
+  }
   try {
-    // Try popup first, fallback to redirect
-    const res = await msalInstance.loginPopup({
-      scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"],
-      prompt: "select_account"
-    });
+    const res = await msalInstance.loginPopup({ scopes: SCOPES, prompt: "select_account" });
     currentAccount = res.account;
     showApp();
   } catch(e) {
-    // If popup fails, use redirect
-    if (e.errorCode === "popup_window_error" || e.errorCode === "empty_window_error" || e.name === "BrowserAuthError") {
+    console.warn("Popup failed, trying redirect:", e.errorCode);
+    if (e.errorCode === "popup_window_error" || e.errorCode === "empty_window_error" || e.errorCode === "user_cancelled") {
       try {
-        await msalInstance.loginRedirect({
-          scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"]
-        });
+        await msalInstance.loginRedirect({ scopes: SCOPES });
       } catch(e2) { showToast('Login failed: ' + e2.message, 'error'); }
-    } else {
+    } else if (e.errorCode !== "user_cancelled") {
       showToast('Login failed: ' + e.message, 'error');
     }
   }
 }
 
 function signOut() {
-  if (DEMO_MODE) { location.reload(); return; }
-  msalInstance.logoutPopup({ account: currentAccount });
+  if (msalInstance) msalInstance.logoutPopup({ account: currentAccount });
+  else location.reload();
 }
 
 async function showApp() {
@@ -542,12 +509,11 @@ async function showApp() {
 
 // ─── TOKEN ─────────────────────────────────────────────────────────────────
 async function getToken() {
-  const scopes = ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"];
   try {
-    const res = await msalInstance.acquireTokenSilent({ scopes, account: currentAccount });
+    const res = await msalInstance.acquireTokenSilent({ scopes: SCOPES, account: currentAccount });
     return res.accessToken;
   } catch(e) {
-    const res = await msalInstance.acquireTokenPopup({ scopes });
+    const res = await msalInstance.acquireTokenPopup({ scopes: SCOPES });
     return res.accessToken;
   }
 }
@@ -709,13 +675,7 @@ async function saveDemand() {
     Status: 'Pending'
   };
 
-  if (DEMO_MODE) {
-    const rec = { id: Date.now(), ref, date: fields.DemandDate, letter: fields.LetterNo, ldate: fields.LetterDate, remarks: fields.Remarks, ...selOffice, demanded: dem, sanctioned:{desktop:0,laptop:0,printer:0,scanner:0,aio:0,helaptop:0,hedesktop:0,other:0}, sanOrder:'',sanDate:'',sanRemarks:'',status:'Pending' };
-    allRecords.unshift(rec);
-    localStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
-    showToast('Saved (local mode)', 'success');
-    clearForm(); btn.disabled=false; btn.textContent='✓ Save to Microsoft Lists'; renderAll(); return;
-  }
+  // No demo mode - always save to SharePoint
 
   try {
     await getSiteAndList();
