@@ -328,7 +328,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--cream);color:var(--
 
 <div class="sync-bar">
   <div class="sync-dot" id="syncDot"></div>
-  <span id="syncStatus">Connected to Microsoft Lists</span>
+  <span id="syncStatus">Logged in — data saved in this browser</span>
   <span style="margin-left:auto;font-family:'IBM Plex Mono',monospace;" id="liveTime"></span>
 </div>
 
@@ -392,7 +392,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--cream);color:var(--
         </table>
         <div class="flex-end">
           <button class="btn btn-outline" onclick="clearForm()">✕ Clear</button>
-          <button class="btn btn-primary" id="saveBtn" onclick="saveDemand()">✓ Save to Microsoft Lists</button>
+          <button class="btn btn-primary" id="saveBtn" onclick="saveDemand()">✓ Save Demand Entry</button>
         </div>
       </div>
     </div>
@@ -486,7 +486,7 @@ const GRAPH       = "https://graph.microsoft.com/v1.0";
 const SHAREPOINT_HOST = "cagiaad-my.sharepoint.com";
 const DRIVE_OWNER = "ravikcons_cag_cag_gov_in";
 const LIST_NAME   = "IT_Demand_Tracker";
-const SCOPES      = ["https://graph.microsoft.com/Files.ReadWrite.All","https://graph.microsoft.com/Sites.ReadWrite.All","https://graph.microsoft.com/User.Read"];
+const SCOPES      = ["User.Read"]; // Only basic profile - no admin consent needed
 
 let msalInstance  = null;
 let currentAccount = null;
@@ -585,8 +585,8 @@ async function showApp() {
   document.getElementById('mainApp').style.display = 'block';
   document.getElementById('userName').textContent = currentAccount.name || currentAccount.username;
   document.getElementById('userEmail').textContent = currentAccount.username;
-  setSyncStatus('syncing', 'Connecting to SharePoint Lists...');
-  await loadRecords();
+  setSyncStatus('ok', 'Logged in — data saved locally in this browser');
+  loadLocalRecords();
 }
 
 // ─── TOKEN ─────────────────────────────────────────────────────────────────
@@ -701,34 +701,27 @@ async function graphDelete(url) {
   if (!res.ok) throw new Error(`Delete failed ${res.status}`);
 }
 
-// ─── LOAD RECORDS ─────────────────────────────────────────────────────────
-async function loadRecords() {
-  if (DEMO_MODE) { renderAll(); return; }
-  setSyncStatus('syncing', 'Loading from SharePoint Lists...');
-  try {
-    await getSiteAndList();
-    if (!siteId || !listId) { setSyncStatus('error', 'List not found — check list name'); return; }
+// ─── LOCAL STORAGE (IndexedDB via localStorage) ────────────────────────────
+const STORAGE_KEY = 'cag_it_tracker_v3';
 
-    const data = await graphGet(`${GRAPH}/sites/${siteId}/lists/${listId}/items?$expand=fields&$top=500`);
-    allRecords = data.value.map(item => {
-      const f = item.fields;
-      return {
-        id: item.id,
-        ref: f.RefNo, date: f.DemandDate, letter: f.LetterNo, ldate: f.LetterDate,
-        remarks: f.Remarks, code: f.OfficeCode, name: f.OfficeName, stream: f.Stream,
-        state: f.State, district: f.District, city: f.City, type: f.OfficeType, hindi: f.HindiName,
-        demanded: { desktop:f.D_Desktop||0, laptop:f.D_Laptop||0, printer:f.D_Printer||0, scanner:f.D_Scanner||0, aio:f.D_AIO||0, helaptop:f.D_HELaptop||0, hedesktop:f.D_HEDesktop||0, other:f.D_Other||0 },
-        sanctioned: { desktop:f.S_Desktop||0, laptop:f.S_Laptop||0, printer:f.S_Printer||0, scanner:f.S_Scanner||0, aio:f.S_AIO||0, helaptop:f.S_HELaptop||0, hedesktop:f.S_HEDesktop||0, other:f.S_Other||0 },
-        sanOrder: f.SanctionOrder||'', sanDate: f.SanctionDate||'', sanRemarks: f.SanctionRemarks||'',
-        status: f.Status||'Pending'
-      };
-    });
-    setSyncStatus('ok', `Synced — ${allRecords.length} records loaded`);
+function loadLocalRecords() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    allRecords = saved ? JSON.parse(saved) : [];
+    setSyncStatus('ok', `Data loaded — ${allRecords.length} records`);
     renderAll();
   } catch(e) {
-    setSyncStatus('error', 'Sync error: ' + e.message);
-    showToast('Load error: ' + e.message, 'error');
+    allRecords = [];
+    renderAll();
   }
+}
+
+function saveLocalRecords() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(allRecords));
+}
+
+async function loadRecords() {
+  loadLocalRecords();
 }
 
 // ─── SAVE DEMAND ───────────────────────────────────────────────────────────
@@ -760,12 +753,25 @@ async function saveDemand() {
   // No demo mode - always save to SharePoint
 
   try {
-    await getSiteAndList();
-    await graphPost(`${GRAPH}/sites/${siteId}/lists/${listId}/items`, { fields });
-    showToast('Demand saved to SharePoint Lists!', 'success');
-    clearForm(); await loadRecords();
+    const rec = {
+      id: Date.now().toString(),
+      ref, date: document.getElementById('d_date').value,
+      letter: document.getElementById('d_letter').value,
+      ldate: document.getElementById('d_ldate').value,
+      remarks: document.getElementById('d_remarks').value,
+      code: selOffice.code, name: selOffice.name, stream: selOffice.stream,
+      state: selOffice.state||selOffice.addrState, district: selOffice.district,
+      city: selOffice.city, type: selOffice.type, hindi: selOffice.hindi,
+      demanded: dem,
+      sanctioned: {desktop:0,laptop:0,printer:0,scanner:0,aio:0,helaptop:0,hedesktop:0,other:0},
+      sanOrder:'', sanDate:'', sanRemarks:'', status:'Pending'
+    };
+    allRecords.unshift(rec);
+    saveLocalRecords();
+    showToast('Demand saved successfully!', 'success');
+    clearForm(); loadLocalRecords();
   } catch(e) { showToast('Save error: ' + e.message, 'error'); }
-  btn.disabled=false; btn.textContent='✓ Save to Microsoft Lists';
+  btn.disabled=false; btn.textContent='✓ Save Demand Entry';
 }
 
 // ─── SANCTION ──────────────────────────────────────────────────────────────
@@ -810,17 +816,14 @@ async function saveSanction() {
   }
 
   try {
-    await getSiteAndList();
-    await graphPatch(`${GRAPH}/sites/${siteId}/lists/${listId}/items/${editingItemId}/fields`, {
-      S_Desktop:san.desktop,S_Laptop:san.laptop,S_Printer:san.printer,S_Scanner:san.scanner,
-      S_AIO:san.aio,S_HELaptop:san.helaptop,S_HEDesktop:san.hedesktop,S_Other:san.other,
-      SanctionOrder:document.getElementById('s_order').value,
-      SanctionDate:document.getElementById('s_date').value,
-      SanctionRemarks:document.getElementById('s_remarks').value,
-      Status:status
-    });
-    showToast('Sanction saved to SharePoint!', 'success');
-    closeModal(); await loadRecords();
+    rec.sanctioned = san;
+    rec.sanOrder = document.getElementById('s_order').value;
+    rec.sanDate = document.getElementById('s_date').value;
+    rec.sanRemarks = document.getElementById('s_remarks').value;
+    rec.status = status;
+    saveLocalRecords();
+    showToast('Sanction updated successfully!', 'success');
+    closeModal(); loadLocalRecords();
   } catch(e) { showToast('Save error: ' + e.message, 'error'); }
 }
 
@@ -831,11 +834,10 @@ async function deleteRecord(id) {
     sessionStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
     renderAll(); showToast('Deleted'); return;
   }
-  try {
-    await getSiteAndList();
-    await graphDelete(`${GRAPH}/sites/${siteId}/lists/${listId}/items/${id}`);
-    showToast('Record deleted'); await loadRecords();
-  } catch(e) { showToast('Delete error: ' + e.message, 'error'); }
+  allRecords = allRecords.filter(r => r.id != id);
+  saveLocalRecords();
+  loadLocalRecords();
+  showToast('Record deleted');
 }
 
 // ─── RENDER ────────────────────────────────────────────────────────────────
