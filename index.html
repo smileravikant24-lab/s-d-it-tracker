@@ -222,15 +222,16 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--cream);color:var(--
     <h1>IT Equipment Tracker</h1>
     <p>Demand & Sanction Management System<br>Office of the Comptroller & Auditor General of India</p>
     <div class="login-divider"></div>
-    <button class="btn-ms" onclick="signIn()">
+    <button class="btn-ms" id="signInBtn" onclick="signIn()" disabled style="opacity:0.6;cursor:not-allowed">
       <svg class="ms-logo" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
         <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
         <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
         <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
         <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
       </svg>
-      Sign in with Microsoft (CAG Account)
+      <span id="btnText">Loading... Please wait</span>
     </button>
+    <p style="font-size:11px;color:#999;margin-top:8px" id="loadingMsg">Initializing Microsoft Authentication...</p>
     <p class="login-note">Use your official CAG Microsoft 365 account<br>(ravikcons.cag@cag.gov.in)</p>
   </div>
 </div>
@@ -451,6 +452,14 @@ window.addEventListener('load', async () => {
   try {
     msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
     await msalInstance.initialize();
+    
+    // Enable sign in button
+    const btn = document.getElementById('signInBtn');
+    const msg = document.getElementById('loadingMsg');
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
+    if(msg){ msg.style.display='none'; }
+    document.getElementById('btnText').textContent = 'Sign in with Microsoft (CAG Account)';
+    
     const response = await msalInstance.handleRedirectPromise();
     if (response && response.account) {
       currentAccount = response.account;
@@ -465,8 +474,12 @@ window.addEventListener('load', async () => {
       }
     }
   } catch(e) {
-    console.error("MSAL init error:", e);
-    // Show login screen anyway so user can try
+    console.error('MSAL init error:', e);
+    const btn = document.getElementById('signInBtn');
+    const msg = document.getElementById('loadingMsg');
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; btn.style.cursor='pointer'; }
+    if(msg){ msg.textContent = 'Ready — click to sign in'; }
+    document.getElementById('btnText').textContent = 'Sign in with Microsoft (CAG Account)';
     showLoginScreen(true);
   }
 });
@@ -487,39 +500,31 @@ function initDemoMode() {
   allRecords = JSON.parse(localStorage.getItem('cag_it_tracker') || '[]');
   renderAll();
 }
+
+// ─── SIGN IN / OUT ─────────────────────────────────────────────────────────
 async function signIn() {
   if (DEMO_MODE) { initDemoMode(); return; }
-  
-  // Check if instance exists
-  if (!msalInstance) {
-    showToast('MSAL not initialized yet. Please wait or refresh.', 'error');
-    return;
-  }
-
   try {
-    const loginRequest = {
+    // Try popup first, fallback to redirect
+    const res = await msalInstance.loginPopup({
       scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"],
       prompt: "select_account"
-    };
-    
-    // Switch to redirect if popup is blocked or fails
-    await msalInstance.loginPopup(loginRequest);
-    const accounts = msalInstance.getAllAccounts();
-    if (accounts.length > 0) {
-      currentAccount = accounts[0];
-      showApp();
-    }
+    });
+    currentAccount = res.account;
+    showApp();
   } catch(e) {
-    console.error(e);
-    // Agar popup block ho raha hai toh automatically redirect use karein
-    if (e.name === "BrowserAuthError" || e.errorCode === "popup_window_error") {
-      msalInstance.loginRedirect(loginRequest);
+    // If popup fails, use redirect
+    if (e.errorCode === "popup_window_error" || e.errorCode === "empty_window_error" || e.name === "BrowserAuthError") {
+      try {
+        await msalInstance.loginRedirect({
+          scopes: ["https://graph.microsoft.com/Files.ReadWrite.All", "https://graph.microsoft.com/Sites.ReadWrite.All", "https://graph.microsoft.com/User.Read"]
+        });
+      } catch(e2) { showToast('Login failed: ' + e2.message, 'error'); }
     } else {
-      showToast('Login error: ' + e.message, 'error');
+      showToast('Login failed: ' + e.message, 'error');
     }
   }
 }
-
 
 function signOut() {
   if (DEMO_MODE) { location.reload(); return; }
