@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IT Equipment Tracker — CAG India</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/msal.js/2.38.3/msal-browser.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js" integrity="sha384-w8uj9E+D0C9b6sB8vHmqp9BEqPBBbA/4LBfUJaF4cJT/ocA7ptEFGXQ3BSCNBap" crossorigin="anonymous"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -434,7 +434,7 @@ async function initMSAL() {
         redirectUri: REDIRECT,
         navigateToLoginRequestUrl: false
       },
-      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true },
+      cache: { cacheLocation: "sessionStorage", storeAuthStateInCookie: true },
       system: { allowNativeBroker: false }
     });
     await msalInstance.initialize();
@@ -466,8 +466,25 @@ window.addEventListener('load', () => {
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('d_date').value = today;
   document.getElementById('s_date').value = today;
+  let elapsed = 0;
   const t = setInterval(() => {
-    if (typeof msal !== 'undefined') { clearInterval(t); initMSAL(); }
+    elapsed += 100;
+    if (typeof msal !== 'undefined') {
+      clearInterval(t);
+      initMSAL();
+    } else if (elapsed > 8000) {
+      clearInterval(t);
+      // MSAL failed to load - try alternate CDN
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/msal.js/2.38.3/msal-browser.min.js';
+      s.onload = () => initMSAL();
+      s.onerror = () => {
+        enableBtn();
+        showLoginScreen(true);
+        console.error('MSAL CDN failed to load');
+      };
+      document.head.appendChild(s);
+    }
   }, 100);
 });
 
@@ -722,7 +739,7 @@ async function saveSanction() {
     rec.sanctioned=san; rec.sanOrder=document.getElementById('s_order').value;
     rec.sanDate=document.getElementById('s_date').value;
     rec.sanRemarks=document.getElementById('s_remarks').value; rec.status=status;
-    localStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
+    sessionStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
     showToast('Sanction updated (local mode)', 'success');
     closeModal(); renderAll(); return;
   }
@@ -746,7 +763,7 @@ async function deleteRecord(id) {
   if (!confirm('Is record ko delete karein?')) return;
   if (DEMO_MODE) {
     allRecords = allRecords.filter(r => r.id != id);
-    localStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
+    sessionStorage.setItem('cag_it_tracker', JSON.stringify(allRecords));
     renderAll(); showToast('Deleted'); return;
   }
   try {
